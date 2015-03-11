@@ -1,0 +1,43 @@
+find-up() {
+  local path=$(pwd)
+  while [[ "$path" != "" && ! -e "$path/$1" ]]; do
+    path=${path%/*}
+  done
+  if [ "$path" != "" ]
+  	then
+  	echo "$path"
+  fi
+}
+parse_git_branch() {
+	local branch=$(echo -n $(git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'))
+  if [ ! -z "$branch" ]; then
+		[[ $(git status 2> /dev/null | tail -n1) != *"working directory clean"* ]] && branch="$branch*"
+		echo -en "--(\\033[2;37m$branch\\033[0;0m)"
+	fi
+}
+parse_alloy_version() {
+	local version=$(alloy --version 2> /dev/null)
+	if [ ! -z "$version" ]; then
+		echo -n "‡"
+		echo -en "\\033[0;36m$version\\033[0;0m"
+	fi
+}
+parse_titanium_version() {
+	local tiapp=`find-up tiapp.xml`
+	if [ -z "$tiapp" ]; then return; fi
+	local tiversion=$(cat "$tiapp/tiapp.xml" 2> /dev/null | sed -n 's/<sdk-version>\(.*\)<\/sdk-version>/\1/p' | tr -d ' \t\n\r\f')
+	if [ -z "$tiversion" ]; then return; fi
+	echo -en "--(\\033[2;36m$tiversion\\033[0;0m"
+	parse_alloy_version
+	echo -n ")"
+}
+
+# find and kill open ports
+terminate(){
+  if [ -z "$1" ]; then
+      echo "Usage: searchAndDestroy [numeric port identifier]" >&2
+      return 1
+  fi
+  lsof -i TCP:$1 | awk '/LISTEN/{print $2}' | xargs kill -9
+  echo "Port" $1 "found and killed."
+}
